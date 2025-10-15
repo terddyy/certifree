@@ -823,7 +823,7 @@ const Certifications = () => {
         {certiFreeCerts.length > 0 && (
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-1 bg-gradient-to-b from-[#ffc300] to-[#ffd6a] rounded-full"></div>
+              <div className="h-10 w-1 bg-gradient-to-b from-[#ffc300] to-[#ffd60a] rounded-full"></div>
               <h2 className="text-2xl font-bold text-white">CertiFree Certifications</h2>
             </div>
             <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>

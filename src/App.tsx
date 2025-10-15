@@ -10,6 +10,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Settings from "./pages/Settings";
 import CertificationDetail from "./pages/CertificationDetail";
 import { DebugToggle } from "@/components/DebugToggle";
@@ -60,7 +61,8 @@ const App = () => (
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/auth" element={<Auth />} /> {/* Add the Auth route */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/settings" element={<ProtectedRoute><RequireAdmin><Settings /></RequireAdmin></ProtectedRoute>} />
           <Route path="/admin/logs" element={<ProtectedRoute><RequireSuperAdmin><AdminLogs /></RequireSuperAdmin></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

@@ -15,6 +15,12 @@ import { supabase } from "@/lib/supabase";
 import { componentDebug } from "@/lib/debugger";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import {
+  handleGoogleOAuth,
+  handleEmailLogin,
+  handleEmailSignup,
+  resendVerificationEmail,
+} from "@/services/authService";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -77,98 +83,127 @@ const Auth = () => {
   });
 
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
+    debug.log('Email login attempt', { email: values.email });
+    
+    const result = await handleEmailLogin(values.email, values.password);
 
-    if (error) {
+    if (!result.success) {
       toast({
         title: "Login Failed",
-        description: error.message,
+        description: result.error || "An error occurred during login.",
         variant: "destructive",
       });
-    } else if (data.user) {
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-      navigate("/dashboard");
+      return;
     }
+
+    toast({
+      title: "Login Successful",
+      description: "Welcome back!",
+    });
+    navigate("/dashboard");
   };
 
   const handleGoogleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) {
-      toast({ title: 'Google Sign-In Failed', description: error.message, variant: 'destructive' });
+    debug.log('Initiating Google OAuth', { mode: 'login' });
+    
+    const result = await handleGoogleOAuth('login');
+
+    if (!result.success) {
+      toast({ 
+        title: 'Google Sign-In Failed', 
+        description: result.error || 'Failed to initiate Google sign-in.',
+        variant: 'destructive' 
+      });
     }
+    // Success case: User will be redirected to Google OAuth consent screen
+    // After consent, they'll be redirected to /auth/callback
+  };
+
+  const handleGoogleSignup = async () => {
+    debug.log('Initiating Google OAuth', { mode: 'signup' });
+    
+    const result = await handleGoogleOAuth('signup');
+
+    if (!result.success) {
+      toast({ 
+        title: 'Google Sign-Up Failed', 
+        description: result.error || 'Failed to initiate Google sign-up.',
+        variant: 'destructive' 
+      });
+    }
+    // Success case: User will be redirected to Google OAuth consent screen
+    // After consent, they'll be redirected to /auth/callback
   };
 
   const handleSignUp = async (values: z.infer<typeof signupSchema>) => {
-    debug.log('Attempting signup', { email: values.email, passwordProvided: !!values.password });
-    const { data, error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: {
-          full_name: `${values.firstName} ${values.lastName}`,
-          // You can add full_name and avatar_url here if you want to initialize them on signup
-          // full_name: "New User", 
-          // avatar_url: ""
-        }
-      }
-    });
+    debug.log('Attempting email signup', { email: values.email });
+    
+    const fullName = `${values.firstName} ${values.lastName}`;
+    const result = await handleEmailSignup(values.email, values.password, fullName);
 
-    if (error) {
-      debug.error('Signup failed', { error: error.message, details: error });
+    if (!result.success) {
+      debug.error('Signup failed', { error: result.error });
       toast({
         title: "Sign Up Failed",
-        description: error.message,
+        description: result.error || "An error occurred during sign-up.",
         variant: "destructive",
       });
-    } else if (data.user) {
-      debug.log('Signup successful', { user: data.user.id });
-      // If email confirmations are disabled, Supabase returns a session directly
-      if (data.session) {
-        toast({
-          title: "Account created",
-          description: "You are now signed in.",
-        });
-        navigate("/dashboard");
-        return;
-      }
-      // Fallback when confirmations are enabled
+      return;
+    }
+
+    debug.log('Signup successful', { requiresVerification: result.requiresVerification });
+
+    // If email confirmation required
+    if (result.requiresVerification) {
       toast({
         title: "Sign Up Successful",
         description: "Please check your email to confirm your account.",
       });
-      // Optionally navigate to a page indicating email verification needed
-      // navigate("/verify-email");
+      return;
     }
+
+    // No email confirmation required - user is logged in
+    toast({
+      title: "Account created",
+      description: "You are now signed in.",
+    });
+    navigate("/dashboard");
   };
 
   // Handle resend verification email with cooldown
   const handleResendVerification = async () => {
     const email = signupForm.getValues('email');
     if (!email) {
-      toast({ title: "Enter your email first", description: "Type your email in the form, then tap Resend.", variant: "destructive" });
+      toast({ 
+        title: "Enter your email first", 
+        description: "Type your email in the form, then tap Resend.", 
+        variant: "destructive" 
+      });
       return;
     }
+    
     if (resendCooldown > 0 || isResending) return;
+    
     try {
       setIsResending(true);
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: { emailRedirectTo: window.location.origin + '/dashboard' }
+      
+      const result = await resendVerificationEmail(email);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      toast({ 
+        title: "Verification sent", 
+        description: `We sent a new link to ${email}.` 
       });
-      if (error) throw error;
-      toast({ title: "Verification sent", description: `We sent a new link to ${email}.` });
       setResendCooldown(60);
     } catch (err: any) {
-      toast({ title: "Could not resend", description: err?.message ?? 'Please try again later.', variant: "destructive" });
+      toast({ 
+        title: "Could not resend", 
+        description: err?.message ?? 'Please try again later.', 
+        variant: "destructive" 
+      });
     } finally {
       setIsResending(false);
     }
@@ -306,6 +341,14 @@ const Auth = () => {
                     </Form>
                   </TabsContent>
                   <TabsContent value="signup" className="mt-0">
+                    <Button onClick={handleGoogleSignup} className="w-full bg-[#fff] text-[#001d3d] hover:bg-gray-100 mb-4">
+                      Continue with Google
+                    </Button>
+                    <div className="flex items-center gap-3 text-gray-400 mb-4">
+                      <div className="flex-1 h-px bg-[#003566]" />
+                      <span className="text-xs">or</span>
+                      <div className="flex-1 h-px bg-[#003566]" />
+                    </div>
                     <Form {...signupForm}>
                       <form onSubmit={signupForm.handleSubmit(handleSignUp)} className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
