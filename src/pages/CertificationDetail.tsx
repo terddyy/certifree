@@ -9,13 +9,15 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { ReviewCard } from "@/components/ReviewCard"; // This import path remains as before
+import { ReviewCard } from "@/components/ReviewCard";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   isTaking,
   startTaking,
   stopTaking,
-  UserProgressRow,
+  isCompleted,
+  markAsCompleted,
+  markAsInProgress,
 } from "@/lib/progress";
 import {
   getCertification,
@@ -25,35 +27,54 @@ import {
 } from "@/lib/certifications-api";
 import { Certification } from "@/lib/types/certifications";
 
-export default function CertificationDetail() { // Changed function name to match file
+interface Review {
+  id: string;
+  user_id: string;
+  certification_id: string;
+  rating: number;
+  title: string;
+  review_text: string | null;
+  created_at: string;
+  profiles?: {
+    full_name?: string;
+    email?: string;
+  };
+}
+
+export default function CertificationDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [certification, setCertification] = useState<Certification | null>(
-    null
-  );
+  const [certification, setCertification] = useState<Certification | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userTakingStatus, setUserTakingStatus] = useState<boolean | null>(
-    null
-  );
+  const [userTakingStatus, setUserTakingStatus] = useState<boolean | null>(null);
+  const [userCompletedStatus, setUserCompletedStatus] = useState<boolean | null>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewContent, setReviewContent] = useState("");
-  const [reviewRating, setReviewRating] = useState(5); // Default rating
+  const [reviewRating, setReviewRating] = useState(5);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   useEffect(() => {
     const fetchCertification = async () => {
+      if (!id) {
+        setError("No certification ID provided");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
-        const { data, error } = await getCertification(id); // Corrected function call
+        const { data, error } = await getCertification(id);
 
         if (error) {
           throw error;
         }
 
         if (data) {
-          setCertification(data as Certification); // Cast directly to Certification
+          setCertification(data as Certification);
         } else {
           setError("Certification not found");
         }
@@ -84,6 +105,21 @@ export default function CertificationDetail() { // Changed function name to matc
   }, [user, certification]);
 
   useEffect(() => {
+    const checkUserCompletedStatus = async () => {
+      if (user && certification) {
+        const { data, error } = await isCompleted(user.id, certification.id);
+        if (error) {
+          console.error("Error checking user completed status:", error.message);
+          setUserCompletedStatus(false);
+        } else {
+          setUserCompletedStatus(data);
+        }
+      }
+    };
+    checkUserCompletedStatus();
+  }, [user, certification]);
+
+  useEffect(() => {
     const checkFavorite = async () => {
       if (user && certification) {
         const { data, error } = await checkFavoriteStatus(user.id, certification.id);
@@ -91,12 +127,64 @@ export default function CertificationDetail() { // Changed function name to matc
           console.error("Error checking favorite status:", error.message);
           setIsFavorite(false);
         } else {
-          setIsFavorite(data);
+          setIsFavorite(!!data);
         }
       }
     };
     checkFavorite();
   }, [user, certification]);
+
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!certification) return;
+
+      setLoadingReviews(true);
+      try {
+        const { data, error } = await supabase
+          .from("reviews")
+          .select(`
+            id,
+            user_id,
+            certification_id,
+            rating,
+            content,
+            created_at,
+            profiles:user_id (full_name, email)
+          `)
+          .eq("certification_id", certification.id)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching reviews:", error);
+          throw error;
+        }
+
+        console.log("Reviews data:", data);
+
+        const formattedReviews: Review[] = (data || []).map((review: any) => ({
+          id: review.id,
+          user_id: review.user_id,
+          certification_id: review.certification_id,
+          rating: review.rating,
+          title: 'User Review',
+          review_text: review.content || '',
+          created_at: review.created_at,
+          profiles: Array.isArray(review.profiles) ? review.profiles[0] : review.profiles,
+        }));
+
+        setReviews(formattedReviews);
+      } catch (err: any) {
+        console.error("Error fetching reviews:", err.message);
+        toast.error("Failed to load reviews");
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
+    fetchReviews();
+  }, [certification]);
 
   const handleToggleFavorite = async () => {
     if (!user || !certification) {
@@ -156,6 +244,37 @@ export default function CertificationDetail() { // Changed function name to matc
     }
   };
 
+  const handleToggleCompleted = async () => {
+    if (!user || !certification) {
+      toast.error("Please log in to mark certifications as completed.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (userCompletedStatus) {
+        // Currently completed, so mark as in progress
+        const { error } = await markAsInProgress(user.id, certification.id);
+        if (error) throw error;
+        setUserCompletedStatus(false);
+        setUserTakingStatus(true);
+        toast.success(`"${certification.title}" marked as in progress.`);
+      } else {
+        // Not completed, so mark as completed
+        const { error } = await markAsCompleted(user.id, certification.id);
+        if (error) throw error;
+        setUserCompletedStatus(true);
+        setUserTakingStatus(false);
+        toast.success(`🎉 Congratulations! You've completed "${certification.title}"!`);
+      }
+    } catch (err: any) {
+      console.error("Error toggling completed status:", err.message);
+      toast.error(`Failed to update completion status: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     if (!user || !certification) {
       toast.error("Please log in to submit a review.");
@@ -168,18 +287,69 @@ export default function CertificationDetail() { // Changed function name to matc
 
     setIsSubmittingReview(true);
     try {
-      const { data, error } = await supabase.from("reviews").insert({
+      // Check if user already reviewed this certification
+      const { data: existingReviews } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("certification_id", certification.id)
+        .maybeSingle();
+
+      if (existingReviews) {
+        toast.error("You have already submitted a review for this certification.");
+        setIsSubmittingReview(false);
+        return;
+      }
+
+      // Insert new review with exact column names from database
+      const reviewData = {
         user_id: user.id,
         certification_id: certification.id,
         rating: reviewRating,
         content: reviewContent.trim(),
-      });
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from("reviews").insert(reviewData);
+
+      if (error) {
+        console.error("Insert error details:", error);
+        toast.error(`Failed to submit review: ${error.message}`);
+        setIsSubmittingReview(false);
+        return;
+      }
 
       toast.success("Review submitted successfully!");
       setReviewContent("");
-      // Optionally, re-fetch reviews or update UI
+      setReviewRating(5);
+
+      // Refresh reviews list
+      const { data: reviewsData } = await supabase
+        .from("reviews")
+        .select(`
+          id,
+          user_id,
+          certification_id,
+          rating,
+          content,
+          created_at,
+          profiles:user_id (full_name, email)
+        `)
+        .eq("certification_id", certification.id)
+        .order("created_at", { ascending: false });
+
+      if (reviewsData) {
+        const formattedReviews: Review[] = reviewsData.map((review: any) => ({
+          id: review.id,
+          user_id: review.user_id,
+          certification_id: review.certification_id,
+          rating: review.rating,
+          title: 'User Review',
+          review_text: review.content || '',
+          created_at: review.created_at,
+          profiles: Array.isArray(review.profiles) ? review.profiles[0] : review.profiles,
+        }));
+        setReviews(formattedReviews);
+      }
     } catch (err: any) {
       console.error("Error submitting review:", err.message);
       toast.error(`Failed to submit review: ${err.message}`);
@@ -324,6 +494,21 @@ export default function CertificationDetail() { // Changed function name to matc
                   </a>
                 </Button>
 
+                {/* Completion Status Button */}
+                {user && (
+                  <Button
+                    className={`w-full py-6 px-6 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 ${
+                      userCompletedStatus
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300"
+                    }`}
+                    onClick={handleToggleCompleted}
+                    disabled={loading}
+                  >
+                    {userCompletedStatus ? "✓ Completed" : "Mark as Completed"}
+                  </Button>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
@@ -333,7 +518,7 @@ export default function CertificationDetail() { // Changed function name to matc
                         : "bg-transparent border-white/30 text-white hover:bg-white/10"
                     }`}
                     onClick={handleToggleTaking}
-                    disabled={loading}
+                    disabled={loading || userCompletedStatus}
                   >
                     {userTakingStatus ? "Taking ✓" : "Track Progress"}
                   </Button>
@@ -437,22 +622,10 @@ export default function CertificationDetail() { // Changed function name to matc
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="skills"
-                  className="data-[state=active]:bg-[#003566] data-[state=active]:text-white rounded-lg px-6 py-3 font-medium transition-all"
-                >
-                  Skills
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="prerequisites"
-                  className="data-[state=active]:bg-[#003566] data-[state=active]:text-white rounded-lg px-6 py-3 font-medium transition-all"
-                >
-                  Prerequisites
-                </TabsTrigger>
-                <TabsTrigger 
                   value="reviews"
                   className="data-[state=active]:bg-[#003566] data-[state=active]:text-white rounded-lg px-6 py-3 font-medium transition-all"
                 >
-                  Reviews
+                  Reviews ({reviews.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -490,65 +663,6 @@ export default function CertificationDetail() { // Changed function name to matc
                       )}
                     </div>
                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="skills" className="mt-8">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    Skills You'll Gain
-                  </h2>
-                  {certification.skills && certification.skills.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {certification.skills.map((skill, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-[#003566] transition-colors"
-                        >
-                          <div className="w-8 h-8 bg-[#003566] text-white rounded-lg flex items-center justify-center flex-shrink-0 font-semibold text-sm">
-                            {index + 1}
-                          </div>
-                          <p className="text-base text-gray-900 font-medium">{skill}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500">
-                        No specific skills listed. Visit the certification page for more details.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="prerequisites" className="mt-8">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    Prerequisites
-                  </h2>
-                  {certification.prerequisites &&
-                  certification.prerequisites.length > 0 ? (
-                    <div className="space-y-3">
-                      {certification.prerequisites.map((prereq, index) => (
-                        <div
-                          key={index}
-                          className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
-                        >
-                          <div className="w-6 h-6 bg-[#ffd60a] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-[#000814] text-xs font-bold">!</span>
-                          </div>
-                          <p className="text-base text-gray-900">{prereq}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 bg-green-50 rounded-xl border border-green-200">
-                      <p className="text-green-700 font-medium text-lg">
-                        ✓ No prerequisites required - Perfect for beginners!
-                      </p>
-                    </div>
-                  )}
                 </div>
               </TabsContent>
 
@@ -616,22 +730,35 @@ export default function CertificationDetail() { // Changed function name to matc
                     Student Reviews
                   </h2>
                   <p className="text-gray-600 mb-6">
-                    {certification.total_reviews} reviews
+                    {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
                   </p>
-                  <div className="space-y-4">
-                    <ReviewCard
-                      userName="Alice Johnson"
-                      rating={5}
-                      date="2023-10-26"
-                      content="Absolutely fantastic certification! Very comprehensive and well-structured. Highly recommend it for anyone looking to break into the field."
-                    />
-                    <ReviewCard
-                      userName="Bob Smith"
-                      rating={4}
-                      date="2023-09-15"
-                      content="Good content, but some parts were a bit challenging. The instructor was very knowledgeable and the material was up-to-date."
-                    />
-                  </div>
+                  
+                  {loadingReviews ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">Loading reviews...</p>
+                    </div>
+                  ) : reviews.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-gray-500 text-lg">No reviews yet</p>
+                      <p className="text-gray-400 text-sm mt-2">Be the first to share your experience!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <ReviewCard
+                          key={review.id}
+                          userName={review.profiles?.full_name || review.profiles?.email?.split('@')[0] || 'Anonymous User'}
+                          rating={review.rating}
+                          date={new Date(review.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                          content={review.review_text || ''}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

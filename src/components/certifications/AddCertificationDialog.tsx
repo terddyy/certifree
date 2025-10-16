@@ -15,6 +15,7 @@ import { CertificationInput } from '@/lib/admin';
 import { Category, uploadCertificationAsset } from '@/services/certificationService';
 import { generateSlugFromTitle, validateFileUpload } from '@/utils/certificationUtils';
 import { DEFAULT_ADD_FORM, MAX_UPLOAD_MB, ALLOWED_FILE_TYPES } from '@/constants/certificationConstants';
+import imageCompression from 'browser-image-compression';
 
 interface AddCertificationDialogProps {
   open: boolean;
@@ -81,8 +82,29 @@ export const AddCertificationDialog = ({
       return;
     }
 
+    // Compress the image
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+
+    let processedFile = file;
+    if (file.type.startsWith('image/')) {
+      try {
+        processedFile = await imageCompression(file, options);
+        toast({ title: 'Image compressed successfully' });
+      } catch (compressionError) {
+        toast({
+          title: 'Compression failed',
+          description: 'Could not compress the image, uploading original file.',
+          variant: 'destructive',
+        });
+      }
+    }
+
     // Upload file
-    const { url, error } = await uploadCertificationAsset(file, generatedId);
+    const { url, error } = await uploadCertificationAsset(processedFile, generatedId);
     if (error) {
       toast({
         title: 'Upload failed',

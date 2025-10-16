@@ -12,6 +12,7 @@ const debug = componentDebug('envConfig');
 interface EnvConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
+  formspreeEndpoint?: string; // Optional Formspree endpoint for contact form
   isProduction: boolean;
 }
 
@@ -34,6 +35,7 @@ export const validateEnvironment = (): ValidationResult => {
   // Required variables
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const formspreeEndpoint = import.meta.env.VITE_FORMSPREE_ENDPOINT;
   
   // Check required variables
   if (!supabaseUrl) {
@@ -92,6 +94,7 @@ export const validateEnvironment = (): ValidationResult => {
     result.config = {
       supabaseUrl,
       supabaseAnonKey,
+      formspreeEndpoint,
       isProduction,
     };
   }

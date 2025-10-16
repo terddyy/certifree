@@ -1,7 +1,10 @@
 import { BookOpen, Heart, Mail, Facebook, Github, Linkedin, Award, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useScrollNavigation } from "@/hooks/useScrollNavigation";
 
 export const Footer = () => {
+  const { navigateToSection } = useScrollNavigation();
+  
   const footerSections = [
     {
       title: "Platform",
@@ -33,6 +36,14 @@ export const Footer = () => {
     { icon: Github, href: "https://github.com", label: "GitHub" },
     { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
   ];
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    // Check if it's a hash navigation link
+    if (href.startsWith("/#")) {
+      e.preventDefault();
+      navigateToSection(href);
+    }
+  };
 
   return (
     <footer className="relative bg-gradient-to-br from-[#000814] via-[#001d3d] to-[#000814] text-gray-300 border-t border-[#ffd60a]/20">
@@ -72,6 +83,7 @@ export const Footer = () => {
                   <li key={link.label}>
                     <Link
                       to={link.href}
+                      onClick={(e) => handleLinkClick(e, link.href)}
                       className="flex items-center gap-2 text-gray-400 hover:text-[#ffd60a] transition-all duration-200 group"
                     >
                       {link.icon && <link.icon className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />}

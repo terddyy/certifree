@@ -41,6 +41,56 @@ export async function stopTaking(userId: string, certificationId: string) {
   return { data, error };
 }
 
+/**
+ * Check if a user has completed a certification
+ */
+export async function isCompleted(userId: string, certificationId: string) {
+  const { data, error } = await supabase
+    .from("user_progress")
+    .select("id, status")
+    .eq("user_id", userId)
+    .eq("certification_id", certificationId)
+    .eq("status", "completed")
+    .limit(1);
+  
+  if (error) return { data: false, error };
+  return { data: (data && data.length > 0), error: null };
+}
+
+/**
+ * Mark a certification as completed
+ */
+export async function markAsCompleted(userId: string, certificationId: string) {
+  const { data, error } = await supabase
+    .from("user_progress")
+    .upsert(
+      {
+        user_id: userId,
+        certification_id: certificationId,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        started_at: new Date().toISOString(), // If not already set
+      },
+      { onConflict: "user_id,certification_id" }
+    );
+  return { data, error };
+}
+
+/**
+ * Mark a certification as in progress (uncomplete it)
+ */
+export async function markAsInProgress(userId: string, certificationId: string) {
+  const { data, error } = await supabase
+    .from("user_progress")
+    .update({
+      status: "in_progress",
+      completed_at: null,
+    })
+    .eq("user_id", userId)
+    .eq("certification_id", certificationId);
+  return { data, error };
+}
+
 export async function countTakersFor(certificationIds: string[]) {
   if (certificationIds.length === 0) return {} as Record<string, number>;
   const { data, error } = await supabase

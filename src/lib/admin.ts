@@ -24,6 +24,8 @@ export interface CertificationInput {
   totalReviews?: number;
   tags?: string[];
   completion_count?: number; // Added to match database schema
+  type?: 'public' | 'certifree'; // Type of certification
+  courseId?: string | null; // Optional course ID for CertiFree type
 }
 
 // Categories CRUD

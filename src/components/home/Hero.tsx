@@ -4,13 +4,29 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import ParticleBackground from "./ParticleBackground";
+import { useGlobalStats } from "@/hooks/useGlobalStats";
 
 export const Hero = () => {
-  const stats = [
-    { label: "Skills", value: "200+" },
-    { label: "Industries", value: "25+" },
-    { label: "Certs Listed", value: "__+" },
+  const { stats: globalStats, loading: statsLoading, error: statsError } = useGlobalStats();
 
+  // Log stats for debugging
+  console.log('[Hero] Stats:', globalStats);
+  console.log('[Hero] Loading:', statsLoading);
+  console.log('[Hero] Error:', statsError);
+
+  const stats = [
+    { 
+      label: "Users", 
+      value: statsLoading ? "..." : `${globalStats?.totalUsers || 0}+` 
+    },
+    { 
+      label: "Certifications", 
+      value: statsLoading ? "..." : `${globalStats?.totalCertifications || 0}+` 
+    },
+    { 
+      label: "Certifications Completed", 
+      value: statsLoading ? "..." : `${globalStats?.totalCertificationsCompleted || 0}+` 
+    },
   ];
 
   return (
@@ -48,11 +64,11 @@ export const Hero = () => {
             </Button>
           </motion.div>
 
-          <motion.div className="grid grid-cols-3 gap-6 max-w-xl mx-auto pt-6" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}>
+          <motion.div className="grid grid-cols-3 gap-4 md:gap-6 max-w-4xl mx-auto pt-6" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}>
             {stats.map((s, idx) => (
-              <motion.div key={s.label} className="bg-[#001d3d] p-6 rounded-xl shadow-xl border border-[#003566]" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 + idx * 0.08 }}>
-                <div className="text-4xl font-extrabold text-[#ffd60a]">{s.value}</div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 mt-1">{s.label}</div>
+              <motion.div key={s.label} className="bg-[#001d3d] p-4 md:p-6 rounded-xl shadow-xl border border-[#003566]" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 + idx * 0.08 }}>
+                <div className="text-3xl md:text-4xl font-extrabold text-[#ffd60a]">{s.value}</div>
+                <div className="text-[0.65rem] md:text-xs uppercase tracking-wide text-gray-400 mt-1 leading-tight">{s.label}</div>
               </motion.div>
             ))}
           </motion.div>

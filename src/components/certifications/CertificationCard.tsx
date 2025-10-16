@@ -82,18 +82,18 @@ export const CertificationCard = ({
           <div className="flex items-start gap-3">
             <div className="w-20 h-14 rounded-lg shadow-md overflow-hidden bg-gradient-to-br from-[#003566] to-[#001d3d] flex items-center justify-center flex-shrink-0 border border-[#ffd60a]/10">
               {certification.image_url ? (
-                <img src={certification.image_url} alt={certification.title} className="w-full h-full object-cover" loading="lazy" />
+                <img src={certification.image_url} alt={certification.title} className="w-full h-full object-contain" loading="lazy" />
               ) : (
                 <BookOpen className="h-6 w-6 text-[#ffd60a]/50" />
               )}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 flex flex-col gap-1 justify-center">
               <CardTitle className="text-base leading-tight text-white group-hover:text-[#ffd60a] transition-colors font-bold">
                 <button onClick={onNavigateToDetail} className="text-left w-full hover:underline">
                   {certification.title}
                 </button>
               </CardTitle>
-              <div className="flex items-center gap-2 mt-2">
+              <div>
                 <Badge variant="outline" className="text-[10px] bg-[#003566]/50 text-[#ffd60a] border-[#ffd60a]/30 font-semibold">
                   {certification.provider}
                 </Badge>

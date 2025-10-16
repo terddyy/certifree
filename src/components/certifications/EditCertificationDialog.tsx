@@ -16,6 +16,7 @@ import { Certification } from '@/lib/types/certifications';
 import { Category, uploadCertificationAsset } from '@/services/certificationService';
 import { validateFileUpload } from '@/utils/certificationUtils';
 import { DEFAULT_EDIT_FORM, MAX_UPLOAD_MB, ALLOWED_FILE_TYPES } from '@/constants/certificationConstants';
+import imageCompression from 'browser-image-compression';
 
 interface EditCertificationDialogProps {
   open: boolean;
@@ -49,8 +50,6 @@ export const EditCertificationDialog = ({
         externalUrl: certification.external_url || '',
         certificationType: certification.certification_type,
         imageUrl: certification.image_url || '',
-        type: 'public', // Always public for external certifications
-        courseId: '', // Not used for external certifications
       });
     }
   }, [certification]);
@@ -82,8 +81,29 @@ export const EditCertificationDialog = ({
       return;
     }
 
+    // Compress the image
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+
+    let processedFile = file;
+    if (file.type.startsWith('image/')) {
+      try {
+        processedFile = await imageCompression(file, options);
+        toast({ title: 'Image compressed successfully' });
+      } catch (compressionError) {
+        toast({
+          title: 'Compression failed',
+          description: 'Could not compress the image, uploading original file.',
+          variant: 'destructive',
+        });
+      }
+    }
+
     // Upload file
-    const { url, error } = await uploadCertificationAsset(file, certification.id);
+    const { url, error } = await uploadCertificationAsset(processedFile, certification.id);
     if (error) {
       toast({
         title: 'Upload failed',
@@ -130,7 +150,7 @@ export const EditCertificationDialog = ({
           {/* Category */}
           <div>
             <Label className="text-gray-300">Category</Label>
-            <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+            <Select value={form.category} onValue-Change={(v) => setForm({ ...form, category: v })}>
               <SelectTrigger className="bg-[#000814] border-[#003566] text-white">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -147,36 +167,6 @@ export const EditCertificationDialog = ({
               </SelectContent>
             </Select>
           </div>
-
-          {/* Type */}
-          <div>
-            <Label className="text-gray-300">Type</Label>
-            <Select
-              value={form.type}
-              onValueChange={(v: 'public' | 'certifree') => setForm({ ...form, type: v })}
-            >
-              <SelectTrigger className="bg-[#000814] border-[#003566] text-white">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#001d3d] border-[#003566] text-white">
-                <SelectItem value="public">Public</SelectItem>
-                <SelectItem value="certifree">CertiFree</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Course ID (CertiFree only) */}
-          {form.type === 'certifree' && (
-            <div>
-              <Label className="text-gray-300">Course ID (for CertiFree)</Label>
-              <Input
-                value={form.courseId}
-                onChange={(e) => setForm({ ...form, courseId: e.target.value })}
-                className="bg-[#000814] border-[#003566] text-white"
-                placeholder="Optional: Link to an existing course"
-              />
-            </div>
-          )}
 
           {/* Duration */}
           <div>

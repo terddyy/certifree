@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useScrollNavigation } from "@/hooks/useScrollNavigation";
 
 interface HeaderProps {
   className?: string;
@@ -28,17 +29,18 @@ export const Header = ({ className }: HeaderProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, profile } = useAuth();
+  const { navigateToSection } = useScrollNavigation();
 
   const navPrimary = [
     { label: "Certifications", href: "/certifications" },
     ...(user ? [{ label: "Dashboard", href: "/dashboard" } as const] : []),
     ...(user ? [{ label: "Favorites", href: "/favorites" } as const] : []),
-    { label: "About", href: "/#about" } as const,
-    { label: "Contact", href: "/#contact" } as const,
+    { label: "About", href: "/about" } as const,
+    { label: "Contact", href: "/contact" } as const,
   ];
   const navSecondary = [
-    { label: "About", href: "/#about" } as const,
-    { label: "Contact", href: "/#contact" } as const,
+    { label: "About", href: "/about" } as const,
+    { label: "Contact", href: "/contact" } as const,
   ];
 
   const handleSearchClick = () => {
@@ -89,6 +91,16 @@ export const Header = ({ className }: HeaderProps) => {
     navigate('/settings');
   };
 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    // Check if it's a hash navigation link
+    if (href.startsWith("/#")) {
+      e.preventDefault(); // Prevent default Link behavior
+      navigateToSection(href);
+      setIsMenuOpen(false); // Close mobile menu if open
+    }
+    // For regular links, let the Link component handle it normally
+  };
+
   return (
     <header className={cn("sticky top-0 z-50 w-full border-b border-[#001d3d] bg-[#000814]/90 backdrop-blur-lg shadow-md", className)} style={{marginTop: 0}}>
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
@@ -107,6 +119,7 @@ export const Header = ({ className }: HeaderProps) => {
             <Link
               key={item.label}
               to={item.href}
+              onClick={(e) => handleNavClick(e, item.href)}
               className="text-sm font-semibold text-gray-300 hover:text-[#ffd60a] transition-colors"
             >
               {item.label}
@@ -203,8 +216,8 @@ export const Header = ({ className }: HeaderProps) => {
               <Link
                 key={item.label}
                 to={item.href}
+                onClick={(e) => handleNavClick(e, item.href)}
                 className="block text-base font-medium text-gray-200 hover:text-[#ffd60a] py-2"
-                onClick={() => setIsMenuOpen(false)}
               >
                 {item.label}
               </Link>
