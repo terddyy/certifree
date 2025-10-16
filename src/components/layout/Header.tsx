@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Menu, X, User, Search, Bell, LogOut, Settings, LayoutDashboard, MoreHorizontal } from "lucide-react";
+import { Menu, X, Search, Bell, LogOut, Settings, LayoutDashboard, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
 interface HeaderProps {
@@ -74,7 +74,7 @@ export const Header = ({ className }: HeaderProps) => {
       navigate("/auth");
       return;
     }
-    const { error } = await supabase.auth.signOut({ options: { redirectTo: '/' } });
+    const { error } = await supabase.auth.signOut();
     if (error) {
       toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
     } else {
@@ -84,6 +84,10 @@ export const Header = ({ className }: HeaderProps) => {
   };
 
   const canSeeSettings = !!(profile?.isAdmin || profile?.isSuperAdmin);
+
+  const handleSettingsClick = () => {
+    navigate('/settings');
+  };
 
   return (
     <header className={cn("sticky top-0 z-50 w-full border-b border-[#001d3d] bg-[#000814]/90 backdrop-blur-lg shadow-md", className)} style={{marginTop: 0}}>
@@ -108,11 +112,6 @@ export const Header = ({ className }: HeaderProps) => {
               {item.label}
             </Link>
           ))}
-          {canSeeSettings && (
-            <Button variant="ghost" className="text-gray-300 hover:text-[#ffd60a]" onClick={() => navigate('/settings')}>
-              <Settings className="mr-2 h-4 w-4" /> Settings
-            </Button>
-          )}
         </nav>
 
         {/* Desktop Actions */}
@@ -163,9 +162,12 @@ export const Header = ({ className }: HeaderProps) => {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")} className="focus:bg-[#003566] focus:text-[#ffd60a]">
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/profile")} className="focus:bg-[#003566] focus:text-[#ffd60a]">
+                    <UserCircle className="mr-2 h-4 w-4" /> Profile
+                  </DropdownMenuItem>
                   {canSeeSettings && (
-                    <DropdownMenuItem onClick={() => navigate("/settings")} className="focus:bg-[#003566] focus:text-[#ffd60a]">
-                      <Settings className="mr-2 h-4 w-4" /> Settings
+                    <DropdownMenuItem onClick={handleSettingsClick} className="focus:bg-[#003566] focus:text-[#ffd60a]">
+                      <Settings className="mr-2 h-4 w-4" /> Admin Settings
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator className="bg-[#003566]" />
@@ -207,13 +209,21 @@ export const Header = ({ className }: HeaderProps) => {
                 {item.label}
               </Link>
             ))}
-            {canSeeSettings && (
-              <Button className="text-gray-300 hover:text-[#ffd60a] w-full" variant="ghost" onClick={() => { setIsMenuOpen(false); navigate('/settings'); }}>
-                <Settings className="mr-2 h-4 w-4" /> Settings
+            {user && (
+              <Button className="text-gray-300 hover:text-[#ffd60a] w-full" variant="ghost" onClick={() => { setIsMenuOpen(false); navigate("/profile"); }}>
+                <UserCircle className="mr-2 h-4 w-4" /> Profile
               </Button>
             )}
-            <div className="flex flex-col space-y-3 pt-4 border-t border-[#001d3d]">
+            {canSeeSettings && (
+              <Button className="text-gray-300 hover:text-[#ffd60a] w-full" variant="ghost" onClick={() => { setIsMenuOpen(false); handleSettingsClick(); }}>
+                <Settings className="mr-2 h-4 w-4" /> Admin Settings
+              </Button>
+            )}
+            <div className="flex flex-col space-y-3 pt-4 border-t border-[#001d3d]">{user ? (
+              <Button className="bg-[#ffc300] text-[#001d3d] font-bold px-5 py-2 rounded-full shadow-md hover:bg-[#ffd60a] w-full" onClick={handleLogout}>Log out</Button>
+            ) : (
               <Button className="bg-[#ffc300] text-[#001d3d] font-bold px-5 py-2 rounded-full shadow-md hover:bg-[#ffd60a] w-full" onClick={handleSignInClick}>Sign In</Button>
+            )}
             </div>
           </div>
         </div>

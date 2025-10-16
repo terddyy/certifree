@@ -29,7 +29,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCertifications } from "@/hooks/useCertifications";
 import { supabase } from "@/lib/supabase";
 import { componentDebug } from "@/lib/debugger";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { deleteCertification, listCategories, updateCertification as updateCertificationAdmin, createCertification as createCertificationAdmin, CertificationInput } from "@/lib/admin";
 import { addFavorite, removeFavorite, isFavorited } from "@/lib/favorites";
@@ -70,7 +70,7 @@ const Certifications = () => {
   const debug = componentDebug('Certifications');
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const isAdmin = !!profile?.isAdmin;
+  const isAdmin = !!(profile?.isAdmin || profile?.isSuperAdmin);
   const { toast } = useToast();
 
   const requireAuth = (action: () => void) => {
@@ -117,8 +117,6 @@ const Certifications = () => {
     externalUrl: "",
     certificationType: "Course",
     imageUrl: "",
-    type: "public", // Added for edit form
-    courseId: "", // Added for edit form
   });
 
   const openEdit = (c: Certification) => {
@@ -133,28 +131,15 @@ const Certifications = () => {
       externalUrl: c.external_url || "",
       certificationType: c.certification_type,
       imageUrl: c.image_url || "",
-      type: "public", // Always public for external certifications
-      courseId: "", // Not used for external certifications
     });
   };
 
   const saveEdit = async () => {
     if (!editing) return;
 
-    // Validate Course ID format if CertiFree type and ID is provided (not null)
-    if (editForm.type === 'certifree' && editForm.courseId) {
-      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-      if (!uuidRegex.test(editForm.courseId)) {
-        toast({ title: "Invalid Course ID", description: "Course ID must be a valid UUID format (e.g., xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) or left empty.", variant: "destructive" });
-        return; // Prevent form submission
-      }
-    }
-
     const { error } = await updateCertificationAdmin(editing.id, {
       ...editForm,
-      type: editForm.type as "public" | "certifree", // Ensure correct type
-      certificationType: editForm.type === 'certifree' ? 'CertiFree' : (editForm.certificationType as "Course" | "Exam" | "Project" | "Bootcamp" | "Public"), // Set based on type
-      courseId: editForm.type === 'certifree' ? (editForm.courseId || null) : undefined, // Only send courseId if certifree, convert empty string to null
+      certificationType: editForm.certificationType as "Course" | "Exam" | "Project" | "Bootcamp" | "Public",
     });
     if (error) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
@@ -176,8 +161,6 @@ const Certifications = () => {
     externalUrl: "",
     certificationType: "Course",
     imageUrl: "",
-    type: "public", // Default to public
-    courseId: "", // Initialize courseId
   });
 
   const saveAdd = async () => {
@@ -242,30 +225,19 @@ const Certifications = () => {
     }
 
     const newCertification: CertificationInput = {
-      id: generatedId, // Use generated ID
+      id: generatedId,
       title: addForm.title,
       provider: addForm.provider,
       category: addForm.category,
       difficulty: addForm.difficulty || "Beginner",
       duration: addForm.duration || "",
       description: addForm.description || "",
-      externalUrl: addForm.externalUrl, // Already validated above
+      externalUrl: addForm.externalUrl,
       imageUrl: addForm.imageUrl || "",
       isFree: true,
-      certificationType: addForm.type === 'certifree' ? 'CertiFree' : (addForm.certificationType || 'Course'),
+      certificationType: addForm.certificationType || 'Course',
       tags: addForm.tags || [],
-      type: addForm.type || 'public',
-      courseId: addForm.type === 'certifree' ? (addForm.courseId || null) : undefined, // Only send courseId if certifree, convert empty string to null
     };
-
-    // Validate Course ID format if CertiFree type and ID is provided (not null)
-    if (newCertification.type === 'certifree' && newCertification.courseId) {
-      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-      if (!uuidRegex.test(newCertification.courseId)) {
-        toast({ title: "Invalid Course ID", description: "Course ID must be a valid UUID format (e.g., xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) or left empty.", variant: "destructive" });
-        return; // Prevent form submission
-      }
-    }
     
     const { error } = await createCertificationAdmin(newCertification);
     if (error) {
@@ -297,7 +269,7 @@ const Certifications = () => {
       };
       setCerts(prev => [newCert, ...prev]);
       setAdding(false);
-      setAddForm({ title: "", provider: "", category: "", difficulty: "Beginner", duration: "", description: "", externalUrl: "", certificationType: "Course", imageUrl: "", type: "public", courseId: "" });
+      setAddForm({ title: "", provider: "", category: "", difficulty: "Beginner", duration: "", description: "", externalUrl: "", certificationType: "Course", imageUrl: "" });
       toast({ title: "Certification created" });
     }
   };
@@ -988,22 +960,6 @@ const Certifications = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-gray-300">Type</Label>
-              <Select value={editForm.type} onValueChange={(v: "public" | "certifree") => setEditForm({ ...editForm, type: v })}>
-                <SelectTrigger className="bg-[#000814] border-[#003566] text-white"><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent className="bg-[#001d3d] border-[#003566] text-white">
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="certifree">CertiFree</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {editForm.type === 'certifree' && (
-              <div>
-                <Label className="text-gray-300">Course ID (for CertiFree)</Label>
-                <Input value={editForm.courseId} onChange={(e) => setEditForm({ ...editForm, courseId: e.target.value })} className="bg-[#000814] border-[#003566] text-white" placeholder="Optional: Link to an existing course" />
-              </div>
-            )}
             {/* Difficulty removed from UI per request */}
             <div>
               <Label className="text-gray-300">Duration</Label>
@@ -1072,22 +1028,6 @@ const Certifications = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-gray-300">Type</Label>
-              <Select value={addForm.type} onValueChange={(v: "public" | "certifree") => setAddForm({ ...addForm, type: v })}>
-                <SelectTrigger className="bg-[#000814] border-[#003566] text-white"><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent className="bg-[#001d3d] border-[#003566] text-white">
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="certifree">CertiFree</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {addForm.type === 'certifree' && (
-              <div>
-                <Label className="text-gray-300">Course ID (for CertiFree)</Label>
-                <Input value={addForm.courseId} onChange={(e) => setAddForm({ ...addForm, courseId: e.target.value })} className="bg-[#000814] border-[#003566] text-white" placeholder="Optional: Link to an existing course" />
-              </div>
-            )}
             {/* Difficulty removed from UI per request */}
             <div>
               <Label className="text-gray-300">Duration</Label>

@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
+import { Navigate } from "react-router-dom";
 
 interface LogEntry {
   id: string;
@@ -15,13 +16,18 @@ interface LogEntry {
 }
 
 const AdminLogs = () => {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Redirect if not super-admin after loading completes
+  if (!authLoading && !profile?.isSuperAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   useEffect(() => {
-    if (!profile?.isAdmin) return;
+    if (!profile?.isSuperAdmin) return;
     (async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -36,9 +42,9 @@ const AdminLogs = () => {
       }
       setLoading(false);
     })();
-  }, [profile?.isAdmin]);
+  }, [profile?.isAdmin, profile?.isSuperAdmin]);
 
-  if (!profile?.isAdmin) {
+  if (!profile?.isAdmin && !profile?.isSuperAdmin) {
     return (
       <div className="min-h-screen bg-[#000814] text-gray-100">
         <Header />

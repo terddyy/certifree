@@ -1,24 +1,44 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createCategory, createCertification, deleteCertification, deleteCategory, listCategories, updateCategory, updateCertification } from "@/lib/admin";
+import { createCategory, deleteCategory, listCategories, updateCategory } from "@/lib/admin";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Navigate } from "react-router-dom";
 
 const Settings = () => {
-  const { user, profile } = useAuth();
-  const isAdmin = !!profile?.isAdmin;
+  const { user, profile, loading } = useAuth();
+  const isAdmin = !!(profile?.isAdmin || profile?.isSuperAdmin);
   const isSuperAdmin = !!profile?.isSuperAdmin;
   const { toast } = useToast();
+
+  console.log('[Settings] Component rendering', { user, profile, loading, isAdmin, isSuperAdmin });
+
+  // Redirect if not admin/super-admin after loading completes
+  if (!loading && !isAdmin && !isSuperAdmin) {
+    console.log('[Settings] Access denied, redirecting to dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#000814] text-gray-100">
+        <Header />
+        <main className="container mx-auto px-6 py-12">
+          <p className="text-gray-400">Loading...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -36,22 +56,8 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    if (isAdmin) refreshCategories();
-  }, [isAdmin]);
-
-  const [certForm, setCertForm] = useState({
-    id: "",
-    title: "",
-    provider: "",
-    category: "",
-    difficulty: "Beginner",
-    duration: "",
-    description: "",
-    externalUrl: "",
-    imageUrl: "",
-    certificationType: "Course",
-    isFree: true,
-  });
+    if (isAdmin || isSuperAdmin) refreshCategories();
+  }, [isAdmin, isSuperAdmin]);
 
   const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -92,14 +98,13 @@ const Settings = () => {
       <Header />
       <main className="container mx-auto px-6 py-12 md:py-16">
         <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-6">Settings</h1>
-        <p className="text-lg text-gray-400 max-w-2xl">
-          Manage your profile, preferences, and account settings here.
+        <p className="text-lg text-gray-400 max-w-2xl mb-8">
+          Manage system configuration and user permissions.
         </p>
 
         <Tabs defaultValue="categories" className="space-y-8">
           <TabsList className="bg-[#001d3d] border border-[#003566]">
             <TabsTrigger value="categories">Categories</TabsTrigger>
-            <TabsTrigger value="certs">Certifications</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="users">User Management</TabsTrigger>}
           </TabsList>
 
@@ -177,96 +182,6 @@ const Settings = () => {
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Certifications Management */}
-          <TabsContent value="certs">
-            <Card className="bg-[#001d3d] border-[#003566]">
-              <CardHeader>
-                <CardTitle className="text-white">Certifications</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-gray-300">ID (slug)</Label>
-                    <Input value={certForm.id} onChange={(e) => setCertForm({ ...certForm, id: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" placeholder="e.g., google-data-analytics" />
-                  </div>
-                  <div>
-                    <Label className="text-gray-300">Title</Label>
-                    <Input value={certForm.title} onChange={(e) => setCertForm({ ...certForm, title: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" />
-                  </div>
-                  <div>
-                    <Label className="text-gray-300">Provider</Label>
-                    <Input value={certForm.provider} onChange={(e) => setCertForm({ ...certForm, provider: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" />
-                  </div>
-                  <div>
-                    <Label className="text-gray-300">Category</Label>
-                    <Select value={certForm.category} onValueChange={(v) => setCertForm({ ...certForm, category: v })}>
-                      <SelectTrigger className="bg-[#000814] border-[#003566] text-white"><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent className="bg-[#001d3d] border-[#003566] text-white">
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name} className="hover:bg-[#003566] hover:text-[#ffd60a]">{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {/* Difficulty removed from UI per request */}
-                  <div>
-                    <Label className="text-gray-300">Duration</Label>
-                    <Input value={certForm.duration} onChange={(e) => setCertForm({ ...certForm, duration: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" placeholder="e.g., 20 hours" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className="text-gray-300">External URL</Label>
-                    <Input value={certForm.externalUrl} onChange={(e) => setCertForm({ ...certForm, externalUrl: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" placeholder="https://..." />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className="text-gray-300">Image URL</Label>
-                    <Input value={certForm.imageUrl} onChange={(e) => setCertForm({ ...certForm, imageUrl: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500 mb-2" placeholder="https://..." />
-                    <input type="file" accept="image/png,image/jpeg,application/pdf" className="text-sm" onChange={(e) => {
-                      // For Settings page we keep simple: admin can paste URL; file uploads are supported in Certifications modal
-                      const f = e.target.files?.[0];
-                      if (f) setCertForm((prev) => ({ ...prev, imageUrl: f.name }));
-                    }} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className="text-gray-300">Description</Label>
-                    <Input value={certForm.description} onChange={(e) => setCertForm({ ...certForm, description: e.target.value })} className="bg-[#000814] border-[#003566] text-white placeholder-gray-500" />
-                  </div>
-                  <div className="md:col-span-2 flex items-center gap-3">
-                    <Button
-                      className="bg-[#ffc300] text-[#001d3d] font-bold hover:bg-[#ffd60a]"
-                      onClick={async () => {
-                        const { error } = await createCertification({
-                          ...certForm,
-                          id: undefined, // Let Supabase generate the UUID
-                          isFree: true,
-                          completion_count: 0,
-                        });
-                        if (error) toast({ title: "Create certification failed", description: error.message, variant: "destructive" });
-                        else {
-                          toast({ title: "Certification created" });
-                          setCertForm({
-                            id: "",
-                            title: "",
-                            provider: "",
-                            category: "",
-                            difficulty: "Beginner",
-                            duration: "",
-                            description: "",
-                            externalUrl: "",
-                            imageUrl: "",
-                            certificationType: "Course",
-                            isFree: true,
-                          });
-                        }
-                      }}
-                    >
-                      Add Certification
-                    </Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import CertificationDetail from "./pages/CertificationDetail";
 import { DebugToggle } from "@/components/DebugToggle";
 import AdminLogs from "./pages/AdminLogs";
@@ -19,7 +20,7 @@ import Favorites from "./pages/Favorites";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import HowItWorks from "@/pages/HowItWorks";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -32,8 +33,16 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
 function RequireAdmin({ children }: { children: JSX.Element }) {
   const { profile, loading } = useAuth();
-  if (loading) return null;
-  if (!profile?.isAdmin && !profile?.isSuperAdmin) return <Navigate to="/dashboard" replace />;
+  console.log('[RequireAdmin] Checking access', { loading, profile, isAdmin: profile?.isAdmin, isSuperAdmin: profile?.isSuperAdmin });
+  if (loading) {
+    console.log('[RequireAdmin] Still loading, returning null');
+    return null;
+  }
+  if (!profile?.isAdmin && !profile?.isSuperAdmin) {
+    console.log('[RequireAdmin] Access denied, redirecting to /dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
+  console.log('[RequireAdmin] Access granted, rendering children');
   return children;
 }
 
@@ -46,30 +55,33 @@ function RequireSuperAdmin({ children }: { children: JSX.Element }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/certifications" element={<Certifications />} />
-          <Route path="/certifications/:id" element={<CertificationDetail />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/settings" element={<ProtectedRoute><RequireAdmin><Settings /></RequireAdmin></ProtectedRoute>} />
-          <Route path="/admin/logs" element={<ProtectedRoute><RequireSuperAdmin><AdminLogs /></RequireSuperAdmin></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <DebugToggle />
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/certifications" element={<Certifications />} />
+            <Route path="/certifications/:id" element={<CertificationDetail />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/admin/logs" element={<ProtectedRoute><AdminLogs /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <DebugToggle />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

@@ -23,25 +23,7 @@ export interface CertificationInput {
   rating?: number;
   totalReviews?: number;
   tags?: string[];
-  type?: "public" | "certifree"; // Future feature: Not yet in database schema
-  courseId?: string | null; // Future feature: Not yet in database schema
   completion_count?: number; // Added to match database schema
-}
-
-// New Interfaces for Courses and Lessons
-export interface CourseInput {
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  status?: 'draft' | 'published';
-}
-
-export interface LessonInput {
-  courseId: string;
-  title: string;
-  content?: string;
-  videoUrl?: string;
-  order: number;
 }
 
 // Categories CRUD
@@ -116,87 +98,9 @@ export async function updateCertification(id: string, patch: Partial<Certificati
   if (patch.isFree !== undefined) mapped.is_free = patch.isFree;
   if (patch.certificationType !== undefined) mapped.certification_type = patch.certificationType;
   if (patch.tags !== undefined) mapped.tags = patch.tags;
-  if (patch.type !== undefined) mapped.type = patch.type; // New: Update type
-  if (patch.courseId !== undefined) mapped.course_id = patch.courseId; // New: Update course_id
   return supabase.from("certifications").update(mapped).eq("id", id);
 }
 
 export async function deleteCertification(id: string) {
   return supabase.from("certifications").delete().eq("id", id);
-}
-
-// Courses CRUD (These functions seem to operate on the 'courses' table already)
-export async function createCourse(input: CourseInput) {
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', (await supabase.auth.getUser()).data.user?.id)
-    .single();
-
-  if (profileError || !profileData) {
-    throw new Error('User profile not found or not authenticated.');
-  }
-
-  return supabase.from("courses").insert({
-    title: input.title,
-    description: input.description ?? null,
-    image_url: input.imageUrl ?? null,
-    status: input.status ?? 'draft',
-    created_by: profileData.id,
-  });
-}
-
-export async function getCourse(id: string) {
-  return supabase.from("courses").select("*, lessons(*)").eq("id", id).single();
-}
-
-export async function updateCourse(id: string, patch: Partial<CourseInput>) {
-  const mapped: any = {};
-  if (patch.title !== undefined) mapped.title = patch.title;
-  if (patch.description !== undefined) mapped.description = patch.description;
-  if (patch.imageUrl !== undefined) mapped.image_url = patch.imageUrl;
-  if (patch.status !== undefined) mapped.status = patch.status;
-  mapped.updated_at = new Date().toISOString();
-  return supabase.from("courses").update(mapped).eq("id", id);
-}
-
-export async function deleteCourse(id: string) {
-  return supabase.from("courses").delete().eq("id", id);
-}
-
-export async function listCourses() {
-  return supabase.from("courses").select("*").order("created_at", { ascending: false });
-}
-
-// Lessons CRUD
-export async function createLesson(input: LessonInput) {
-  return supabase.from("lessons").insert({
-    course_id: input.courseId,
-    title: input.title,
-    content: input.content ?? null,
-    video_url: input.videoUrl ?? null,
-    order: input.order,
-  });
-}
-
-export async function getLesson(id: string) {
-  return supabase.from("lessons").select("*").eq("id", id).single();
-}
-
-export async function updateLesson(id: string, patch: Partial<LessonInput>) {
-  const mapped: any = {};
-  if (patch.title !== undefined) mapped.title = patch.title;
-  if (patch.content !== undefined) mapped.content = patch.content;
-  if (patch.videoUrl !== undefined) mapped.video_url = patch.videoUrl;
-  if (patch.order !== undefined) mapped.order = patch.order;
-  mapped.updated_at = new Date().toISOString();
-  return supabase.from("lessons").update(mapped).eq("id", id);
-}
-
-export async function deleteLesson(id: string) {
-  return supabase.from("lessons").delete().eq("id", id);
-}
-
-export async function listLessons(courseId: string) {
-  return supabase.from("lessons").select("*").eq("course_id", courseId).order("order");
 } 
