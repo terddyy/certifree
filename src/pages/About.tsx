@@ -78,8 +78,8 @@ const About = () => {
     {
       name: "Terd Inocentes",
       role: "CEO & Founder",
-      bio: "IBM Full Stack Software Developer | Oracle AI Professional | AWS Cloud Consultant | Google Cloud Innovator",
-      image: "/api/placeholder/150/150",
+      bio: "IBM Full Stack Software Developer | Oracle Gen AI Professional | AWS Cloud Consultant | Google Cloud Innovator",
+      image: "/images/pfp/terd.jpg",
       linkedin: "#",
       twitter: "#",
       github: "#"
@@ -88,7 +88,7 @@ const About = () => {
       name: "Gayle Florencio",
       role: "Co-Founder & Lead Designer",
       bio: "Frontend Developer & UI/UX Designer passionate about creating intuitive and beautiful user experiences.",
-      image: "/api/placeholder/150/150",
+      image: "/images/pfp/gayle.jpg",
       linkedin: "#",
       twitter: "#",
       github: "#"
@@ -97,7 +97,7 @@ const About = () => {
       name: "Jerry Yan Ken La Torre",
       role: "Operations Manager",
       bio: "Documentary Specialist & Researcher ensuring quality and accuracy across the platform.",
-      image: "/api/placeholder/150/150",
+      image: "/images/pfp/azy.jpg",
       linkedin: "#",
       twitter: "#",
       github: "#"
