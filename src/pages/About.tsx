@@ -82,7 +82,8 @@ const About = () => {
       image: "/images/pfp/terd.jpg",
       linkedin: "#",
       twitter: "#",
-      github: "#"
+      github: "#",
+      profileUrl: "https://terd.zentariph.com"
     },
     {
       name: "Gayle Florencio",
@@ -91,7 +92,8 @@ const About = () => {
       image: "/images/pfp/gayle.jpg",
       linkedin: "#",
       twitter: "#",
-      github: "#"
+      github: "#",
+      profileUrl: "https://www.facebook.com/gaylemnq"
     },
     {
       name: "Jerry Yan Ken La Torre",
@@ -100,7 +102,8 @@ const About = () => {
       image: "/images/pfp/azy.jpg",
       linkedin: "#",
       twitter: "#",
-      github: "#"
+      github: "#",
+      profileUrl: "https://www.facebook.com/azylatorre0198"
     }
   ];
 
@@ -165,14 +168,33 @@ const About = () => {
                 <motion.div key={member.name} variants={itemVariants}>
                   <Card className="bg-[#001d3d] border-[#003566] hover:border-[#ffd60a] transition-all duration-300 text-center group h-full">
                     <CardContent className="p-8">
-                      <Avatar className="h-28 w-28 mx-auto mb-6 ring-4 ring-[#003566] group-hover:ring-[#ffd60a] transition-all duration-300">
-                        <AvatarImage src={member.image} alt={member.name} />
-                        <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-[#003566] to-[#001d3d] text-white">
-                          {member.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
+                      {member.profileUrl && member.profileUrl !== '#' ? (
+                        <a href={member.profileUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${member.name}'s profile`}>
+                          <Avatar className="h-28 w-28 mx-auto mb-6 ring-4 ring-[#003566] group-hover:ring-[#ffd60a] transition-all duration-300">
+                            <AvatarImage src={member.image} alt={member.name} />
+                            <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-[#003566] to-[#001d3d] text-white">
+                              {member.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                        </a>
+                      ) : (
+                        <Avatar className="h-28 w-28 mx-auto mb-6 ring-4 ring-[#003566] group-hover:ring-[#ffd60a] transition-all duration-300">
+                          <AvatarImage src={member.image} alt={member.name} />
+                          <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-[#003566] to-[#001d3d] text-white">
+                            {member.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+
+                      {member.profileUrl && member.profileUrl !== '#' ? (
+                        <h3 className="text-xl font-bold text-white mb-2">
+                          <a href={member.profileUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" aria-label={`Open ${member.name}'s profile`}>
+                            {member.name}
+                          </a>
+                        </h3>
+                      ) : (
+                        <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
+                      )}
                       <p className="text-[#ffd60a] font-semibold text-sm mb-4 uppercase tracking-wide">{member.role}</p>
                       <p className="text-gray-400 text-sm leading-relaxed mb-6">
                         {member.bio}

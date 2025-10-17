@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ChevronRight, ExternalLink, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -486,12 +485,39 @@ export default function CertificationDetail() {
               <div className="space-y-3">
                 <Button
                   className="w-full bg-[#ffd60a] hover:bg-[#ffc800] text-[#000814] py-6 px-6 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
-                  asChild
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!user) {
+                      toast.error('Please log in to start the certification.');
+                      return;
+                    }
+
+                    // Optimistically set taking status
+                    setUserTakingStatus(true);
+                    try {
+                      // Track that the user started this certification (server-side)
+                      const { error } = await startTaking(user.id, certification.id);
+                      if (error) {
+                        console.error('startTaking error', error);
+                        toast.error('Could not mark as started on the server.');
+                      }
+                    } catch (err: any) {
+                      console.error('startTaking exception', err);
+                      toast.error('Could not mark as started.');
+                    }
+
+                    // Open the provider page in a new tab (do not rely on asChild anchor)
+                    try {
+                      if (certification.external_url) {
+                        window.open(certification.external_url, '_blank', 'noopener');
+                      }
+                    } catch (err) {
+                      console.error('Failed to open certification link', err);
+                    }
+                  }}
                 >
-                  <a href={certification.external_url} target="_blank" rel="noopener noreferrer">
-                    Start Certification
-                    <ExternalLink className="w-5 h-5" />
-                  </a>
+                  Start Certification
+                  <ExternalLink className="w-5 h-5" />
                 </Button>
 
                 {/* Completion Status Button */}

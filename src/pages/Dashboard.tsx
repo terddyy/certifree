@@ -6,16 +6,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { BookOpen, Heart, Award, TrendingUp, ExternalLink } from "lucide-react";
+import { BookOpen, Heart, Award, TrendingUp, ExternalLink, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { Certification } from "@/lib/types/certifications";
 
 interface UserProgress {
   id: string;
   certification_id: string;
-  progress: number;
+  status: string;
   started_at: string;
+  completed_at?: string;
   certifications?: Certification;
 }
 
@@ -29,6 +29,7 @@ const Dashboard = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
+  const [completedCourses, setCompletedCourses] = useState<UserProgress[]>([]);
   const [favorites, setFavorites] = useState<UserFavorite[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -48,16 +49,29 @@ const Dashboard = () => {
     try {
       setDataLoading(true);
 
-      // Fetch user progress
+      // Fetch in-progress certifications
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
         .select('*, certifications(*)')
         .eq('user_id', user?.id)
+        .eq('status', 'in_progress')
         .order('started_at', { ascending: false })
         .limit(5);
 
       if (progressError) throw progressError;
       setUserProgress(progressData || []);
+
+      // Fetch completed certifications
+      const { data: completedData, error: completedError } = await supabase
+        .from('user_progress')
+        .select('*, certifications(*)')
+        .eq('user_id', user?.id)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(6);
+
+      if (completedError) throw completedError;
+      setCompletedCourses(completedData || []);
 
       // Fetch favorites
       const { data: favoritesData, error: favoritesError } = await supabase
@@ -131,7 +145,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                {profile?.totalCertificationsCompleted || 0}
+                {completedCourses.length}
               </div>
               <p className="text-xs text-gray-400">Certifications earned</p>
             </CardContent>
@@ -157,7 +171,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-white">Continue Learning</h2>
               <Link to="/certifications">
-                <Button variant="outline" size="sm" className="border-[#ffd60a] text-[#ffd60a] hover:bg-[#ffd60a] hover:text-[#000814]">
+                <Button variant="outline" size="sm" className="border-[#ffd60a] text-[#ffd60a] bg-transparent hover:bg-[#ffd60a]/10 hover:text-[#ffd60a]">
                   Browse All
                 </Button>
               </Link>
@@ -189,17 +203,25 @@ const Dashboard = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-400">Progress</span>
-                          <span className="font-medium text-[#ffd60a]">{item.progress}%</span>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Clock className="h-4 w-4 text-[#ffd60a]" />
+                          <span>Started {new Date(item.started_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}</span>
                         </div>
-                        <Progress value={item.progress} className="h-2 bg-[#003566]" />
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-[#ffd60a]/20 text-[#ffd60a] border-[#ffd60a]/30 font-semibold">
+                            Started
+                          </Badge>
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Link to={`/certifications/${item.certification_id}`} className="flex-1">
-                          <Button className="w-full bg-[#ffd60a] text-[#000814] hover:bg-[#ffd60a]/90">
-                            Continue
+                          <Button className="w-full bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffc300] shadow-sm">
+                            Resume
                           </Button>
                         </Link>
                         {item.certifications?.external_url && (
@@ -224,7 +246,7 @@ const Dashboard = () => {
                   <h3 className="text-lg font-semibold text-white mb-2">No certifications in progress</h3>
                   <p className="text-gray-400 mb-4">Start your learning journey today!</p>
                   <Link to="/certifications">
-                    <Button className="bg-[#ffd60a] text-[#000814] hover:bg-[#ffd60a]/90">
+                    <Button className="bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffd60a]/90">
                       Browse Certifications
                     </Button>
                   </Link>
@@ -233,15 +255,13 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Favorites Section */}
+          {/* Completed Courses Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Your Favorites</h2>
-              <Link to="/favorites">
-                <Button variant="outline" size="sm" className="border-[#ffd60a] text-[#ffd60a] hover:bg-[#ffd60a] hover:text-[#000814]">
-                  View All
-                </Button>
-              </Link>
+              <h2 className="text-2xl font-bold text-white">Completed Courses</h2>
+              <Button variant="outline" size="sm" className="border-[#ffd60a] text-[#ffd60a] bg-transparent hover:bg-[#ffd60a]/10 hover:text-[#ffd60a]">
+                View All ({completedCourses.length})
+              </Button>
             </div>
 
             {dataLoading ? (
@@ -250,30 +270,50 @@ const Dashboard = () => {
                   <p className="text-gray-400">Loading...</p>
                 </CardContent>
               </Card>
-            ) : favorites.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {favorites.map((item) => (
-                  <Card key={item.certification_id} className="bg-[#001d3d] border-[#ffd60a]/20 hover:border-[#ffd60a] transition-colors">
+            ) : completedCourses.length > 0 ? (
+              <div className="space-y-4">
+                {completedCourses.slice(0, 5).map((item) => (
+                  <Card key={item.id} className="bg-[#001d3d] border-[#ffd60a]/20 hover:border-[#ffd60a] transition-colors">
                     <CardHeader>
-                      <CardTitle className="text-base text-white">
-                        {item.certifications?.title}
-                      </CardTitle>
-                      <CardDescription className="text-gray-400">
-                        {item.certifications?.provider} • {item.certifications?.difficulty}
-                      </CardDescription>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg text-white">
+                            {item.certifications?.title}
+                          </CardTitle>
+                          <CardDescription className="text-gray-400">
+                            {item.certifications?.provider} • {item.certifications?.difficulty}
+                          </CardDescription>
+                        </div>
+                        <Badge variant="secondary" className="bg-[#003566] text-white">
+                          {item.certifications?.category}
+                        </Badge>
+                      </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <CheckCircle2 className="h-4 w-4 text-green-400" />
+                          <span>Completed {new Date(item.completed_at || '').toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}</span>
+                        </div>
+                        <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                          ✓ Completed
+                        </Badge>
+                      </div>
                       <div className="flex gap-2">
                         <Link to={`/certifications/${item.certification_id}`} className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full border-[#ffd60a] text-[#ffd60a]">
+                          <Button variant="outline" className="w-full border-[#ffd60a] text-[#ffd60a] bg-transparent hover:bg-[#ffd60a]/10 hover:text-[#ffd60a]">
                             View Details
                           </Button>
                         </Link>
                         {item.certifications?.external_url && (
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="border-[#ffd60a]/50 text-[#ffd60a]"
+                            size="icon"
+                            className="border-[#ffd60a]/50 text-[#ffd60a] hover:bg-[#ffd60a]/10"
                             onClick={() => window.open(item.certifications?.external_url || '', '_blank')}
                           >
                             <ExternalLink className="h-4 w-4" />
@@ -287,20 +327,87 @@ const Dashboard = () => {
             ) : (
               <Card className="bg-[#001d3d] border-[#ffd60a]/20">
                 <CardContent className="py-12 text-center">
-                  <Heart className="h-12 w-12 mx-auto mb-4 text-[#ffd60a]" />
-                  <h3 className="text-lg font-semibold text-white mb-2">No favorites yet</h3>
-                  <p className="text-gray-400 mb-4">
-                    Save certifications you're interested in
-                  </p>
+                  <Award className="h-12 w-12 mx-auto mb-4 text-[#ffd60a]" />
+                  <h3 className="text-lg font-semibold text-white mb-2">No completed certifications yet</h3>
+                  <p className="text-gray-400 mb-4">Complete your first certification to see it here!</p>
                   <Link to="/certifications">
-                    <Button className="bg-[#ffd60a] text-[#000814] hover:bg-[#ffd60a]/90">
-                      Browse Certifications
-                    </Button>
-                  </Link>
+                          <Button className="bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffc300] shadow-sm">
+                            Browse Certifications
+                          </Button>
+                        </Link>
                 </CardContent>
               </Card>
             )}
           </div>
+        </div>
+
+        {/* Favorites Section - Full Width */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white">Your Favorites</h2>
+            <Link to="/favorites">
+              <Button variant="outline" size="sm" className="border-[#ffd60a] text-[#ffd60a] hover:bg-[#ffd60a] hover:text-[#000814]">
+                View All
+              </Button>
+            </Link>
+          </div>
+
+          {dataLoading ? (
+            <Card className="bg-[#001d3d] border-[#ffd60a]/20">
+              <CardContent className="py-12 text-center">
+                <p className="text-gray-400">Loading...</p>
+              </CardContent>
+            </Card>
+          ) : favorites.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {favorites.map((item) => (
+                <Card key={item.certification_id} className="bg-[#001d3d] border-[#ffd60a]/20 hover:border-[#ffd60a] transition-colors">
+                  <CardHeader>
+                    <CardTitle className="text-base text-white line-clamp-2">
+                      {item.certifications?.title}
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      {item.certifications?.provider} • {item.certifications?.difficulty}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2">
+                      <Button asChild size="sm" className="w-full border-[#ffd60a] text-[#ffd60a] bg-transparent hover:bg-[#ffd60a]/10 hover:text-[#ffd60a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd60a]/40 rounded-md h-9 px-3">
+                        <Link to={`/certifications/${item.certification_id}`} aria-label={`View details for ${item.certifications?.title}`}>
+                          View Details
+                        </Link>
+                      </Button>
+                      {item.certifications?.external_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-[#ffd60a]/50 text-[#ffd60a]"
+                          onClick={() => window.open(item.certifications?.external_url || '', '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-[#001d3d] border-[#ffd60a]/20">
+              <CardContent className="py-12 text-center">
+                <Heart className="h-12 w-12 mx-auto mb-4 text-[#ffd60a]" />
+                <h3 className="text-lg font-semibold text-white mb-2">No favorites yet</h3>
+                <p className="text-gray-400 mb-4">
+                  Save certifications you're interested in
+                </p>
+                <Link to="/certifications">
+                  <Button className="bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffd60a]/90">
+                    Browse Certifications
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
       <Footer />

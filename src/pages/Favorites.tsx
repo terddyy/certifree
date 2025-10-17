@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ExternalLink, Heart, Clock, Star, Award, Trash2 } from "lucide-react";
 import { removeFavorite } from "@/lib/favorites";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 // Type for certification object
 interface CertificationData {
@@ -135,32 +137,42 @@ const Favorites = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffd60a] mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading your favorites...</p>
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div className="flex-1 bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffd60a] mx-auto mb-4"></div>
+            <p className="text-white text-lg">Loading your favorites...</p>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-white mb-2">Oops! Something went wrong</h2>
-          <p className="text-gray-300 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} className="bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffc300]">
-            Try Again
-          </Button>
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div className="flex-1 bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814] flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-white mb-2">Oops! Something went wrong</h2>
+            <p className="text-gray-300 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} className="bg-[#ffd60a] text-[#001d3d] hover:bg-[#ffc300]">
+              Try Again
+            </Button>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814]">
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <main className="flex-1 bg-gradient-to-br from-[#001d3d] via-[#003566] to-[#000814]">
       <div className="container mx-auto px-4 py-8 md:px-8 md:py-12">
         {/* Header Section */}
         <div className="mb-8">
@@ -310,7 +322,9 @@ const Favorites = () => {
             })}
           </div>
         )}
-      </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 };
