@@ -150,7 +150,7 @@ const About = () => {
                 Meet the Team
               </h2>
               <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-                Passionate professionals dedicated to democratizing education
+                Passionate students dedicated to democratizing education
               </p>
             </motion.div>
 

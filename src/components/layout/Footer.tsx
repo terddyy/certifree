@@ -50,7 +50,7 @@ export const Footer = () => {
       {/* Decorative top border glow */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ffd60a] to-transparent"></div>
       
-      <div className="container mx-auto px-6 py-12 md:py-16">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         {/* Brand Section */}
         <div className="mb-12">
           <div className="flex items-center space-x-4 mb-4">
@@ -74,7 +74,7 @@ export const Footer = () => {
         {/* Links Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-12">
           {footerSections.map((section) => (
-            <div key={section.title} className="space-y-4">
+            <div key={section.title} className="space-y-4 text-left">
               <h4 className="font-bold text-white text-lg border-b border-[#ffd60a]/20 pb-2">
                 {section.title}
               </h4>
@@ -86,7 +86,7 @@ export const Footer = () => {
                       onClick={(e) => handleLinkClick(e, link.href)}
                       className="flex items-center gap-2 text-gray-400 hover:text-[#ffd60a] transition-all duration-200 group"
                     >
-                      {link.icon && <link.icon className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                      {link.icon && <link.icon className="h-4 w-4 opacity-100 group-hover:text-[#ffd60a] transition-colors" />}
                       <span className="group-hover:translate-x-1 transition-transform">{link.label}</span>
                     </Link>
                   </li>

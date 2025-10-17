@@ -1,16 +1,16 @@
 /**
  * Contact Page Component
  * 
- * Professional contact form integrated with Formspree
+ * Professional contact form integrated with Formspree and Google reCAPTCHA v3
  * Features:
  * - Form validation
+ * - Google reCAPTCHA v3 spam protection
  * - Loading states
  * - Success/error handling
- * - Honeypot spam protection
  * - Responsive design
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useRecaptcha } from "@/hooks/useRecaptcha";
 import { 
   Send, 
   Mail, 
   MapPin, 
   MessageSquare,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Shield
 } from "lucide-react";
 
-// Get Formspree endpoint from environment variable with fallback
+// Get configuration from environment variables
 const FORMSPREE_ENDPOINT = import.meta.env.VITE_FORMSPREE_ENDPOINT || "https://formspree.io/f/xkgqywkj";
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
 
 interface FormData {
   name: string;
@@ -46,6 +49,7 @@ interface FormErrors {
 
 const Contact = () => {
   const { toast } = useToast();
+  const { executeRecaptcha, loaded: recaptchaLoaded, error: recaptchaError } = useRecaptcha(RECAPTCHA_SITE_KEY);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -55,6 +59,14 @@ const Contact = () => {
     message: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Show reCAPTCHA error if it fails to load
+  useEffect(() => {
+    if (recaptchaError) {
+      console.error('reCAPTCHA error:', recaptchaError);
+      // Don't show to user - form will work without reCAPTCHA
+    }
+  }, [recaptchaError]);
 
   // Validate form fields
   const validateForm = (): boolean => {
@@ -112,9 +124,27 @@ const Contact = () => {
     setLoading(true);
 
     try {
+      // Execute reCAPTCHA v3 before submitting
+      let recaptchaToken = '';
+      if (recaptchaLoaded && RECAPTCHA_SITE_KEY) {
+        try {
+          recaptchaToken = await executeRecaptcha('contact_form');
+          console.log('reCAPTCHA token generated successfully');
+        } catch (err) {
+          console.error('reCAPTCHA execution failed:', err);
+          // Continue without reCAPTCHA if it fails
+        }
+      }
+
+      // Prepare form data with reCAPTCHA token
+      const submitData = {
+        ...formData,
+        'g-recaptcha-response': recaptchaToken,
+      };
+
       const response = await fetch(FORMSPREE_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -376,6 +406,16 @@ const Contact = () => {
                       aria-hidden="true"
                     />
 
+                    {/* reCAPTCHA Notice */}
+                    {RECAPTCHA_SITE_KEY && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 bg-[#000814]/50 p-3 rounded-lg border border-[#003566]">
+                        <Shield className="h-4 w-4 text-[#ffd60a]" />
+                        <span>
+                          Protected by Google reCAPTCHA v3 for spam prevention
+                        </span>
+                      </div>
+                    )}
+
                     {/* Submit Button */}
                     <Button
                       type="submit"
@@ -401,6 +441,29 @@ const Contact = () => {
                         Privacy Policy
                       </a>
                       . We respect your privacy and will never share your information.
+                      {RECAPTCHA_SITE_KEY && (
+                        <>
+                          {" "}This site is protected by reCAPTCHA and the Google{" "}
+                          <a 
+                            href="https://policies.google.com/privacy" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[#ffd60a] hover:underline"
+                          >
+                            Privacy Policy
+                          </a>
+                          {" "}and{" "}
+                          <a 
+                            href="https://policies.google.com/terms" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[#ffd60a] hover:underline"
+                          >
+                            Terms of Service
+                          </a>
+                          {" "}apply.
+                        </>
+                      )}
                     </p>
                   </form>
                 )}
